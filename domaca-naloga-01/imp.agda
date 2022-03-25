@@ -11,6 +11,18 @@ if_then_else_ : {A : Set} → Bool → A → A → A
 if true then x else y = x
 if false then x else y = y
 
+agdaAnd : Bool → Bool → Bool
+agdaAnd false _ = false
+agdaAnd true q = q
+
+agdaOr : Bool → Bool → Bool
+agdaOr true  _ = true
+agdaOr false q = q
+
+agdaNot : Bool → Bool
+agdaNot false = true
+agdaNot true = false
+
 
 -- Naravna števila
 
@@ -28,6 +40,10 @@ plus (suc m) n = suc (plus m n)
 times : Nat → Nat → Nat
 times zero n = zero
 times (suc m) n = plus (times m  n) n
+
+pow : Nat → Nat → Nat
+pow a zero = suc zero
+pow a (suc n) = times a (pow a n) 
 
 equal : Nat → Nat → Bool
 equal zero zero = true
@@ -91,12 +107,16 @@ infix 5 IF_THEN_ELSE_END
 infix 6 WHILE_DO_DONE
 infix 6 SKIP
 
+infixl 7 _OR_
+infixl 8 _AND_
+infixl 9 NOT
 infix 10 _≡_
 infix 10 _>_
 infix 10 _<_
 
 infixl 11 _+_
 infixl 12 _*_
+infixl 13 _**_
 
 infix 14 !_
 infix 15 `_
@@ -109,11 +129,16 @@ data Exp (n : Nat) : Set where
     !_ : Fin n → Exp n -- Spremenljivke nazivamo z naravnimi števili manjšimi od `n`
     _+_ : Exp n → Exp n → Exp n
     _*_ : Exp n → Exp n → Exp n
+    _**_ : Exp n → Exp n → Exp n
 
 data BExp (n : Nat) : Set where
     _≡_ : Exp n → Exp n → BExp n
     _<_ : Exp n → Exp n → BExp n
     _>_ : Exp n → Exp n → BExp n
+    _AND_ : BExp n → BExp n → BExp n
+    _OR_ : BExp n → BExp n → BExp n
+    NOT : BExp n → BExp n
+
 
 data Cmd : (n : Nat) → Set where
     IF_THEN_ELSE_END : {n : Nat} → BExp n → Cmd n → Cmd n → Cmd n
@@ -180,11 +205,15 @@ evalExp st (` x) = x
 evalExp st (! i) = st [ i ]
 evalExp st (exp₁ + exp₂) = plus (evalExp st exp₁) (evalExp st exp₂)
 evalExp st (exp₁ * exp₂) = times (evalExp st exp₁) (evalExp st exp₂)
+evalExp st (exp₁ ** exp₂) = pow (evalExp st exp₁) (evalExp st exp₂)
 
 evalBExp : {n : Nat} → State n → BExp n → Bool
 evalBExp st (bexp₁ ≡ bexp₂) = equal (evalExp st bexp₁) (evalExp st bexp₂)
 evalBExp st (bexp₁ < bexp₂) = smaller (evalExp st bexp₁) (evalExp st bexp₂)
 evalBExp st (bexp₁ > bexp₂) = greater (evalExp st bexp₁) (evalExp st bexp₂)
+evalBExp st (bexp₁ AND bexp₂) = agdaAnd (evalBExp st bexp₁) (evalBExp st bexp₂)
+evalBExp st (bexp₁ OR bexp₂) = agdaOr (evalBExp st bexp₁) (evalBExp st bexp₂)
+evalBExp st (NOT bexp) = agdaNot (evalBExp st bexp)
 
 evalCmd : {n : Nat} → Nat → State n → Cmd n → Result n
 evalCmd n st IF bexp THEN cmd₁ ELSE cmd₂ END =
