@@ -25,7 +25,27 @@ plus : Nat → Nat → Nat
 plus zero n = n
 plus (suc m) n = suc (plus m n)
 
+times : Nat → Nat → Nat
+times zero n = zero
+times (suc m) n = plus (times m  n) n
 
+equal : Nat → Nat → Bool
+equal zero zero = true
+equal zero (suc x) = false
+equal (suc x) zero = false
+equal (suc m) (suc n) = equal m n
+
+greater : Nat → Nat → Bool
+greater zero zero = false
+greater zero (suc n) = false
+greater (suc m) zero = true
+greater (suc m) (suc n) = greater m n
+
+smaller : Nat → Nat → Bool
+smaller zero zero = false
+smaller zero (suc n) = true
+smaller (suc m) zero = false
+smaller (suc m) (suc n) = smaller m n
 -- Seznami
 
 data List : Set → Set where
@@ -102,7 +122,7 @@ data Cmd : (n : Nat) → Set where
     _:=_ : {n : Nat} → (Fin n) → Exp n → Cmd n
     SKIP : {n : Nat} → Cmd n
 
--- Primer aritmetičnega izraza, ki sešteje vrednosti spremenljivk na mestu 1 in 0 v stanju s tremi spremenljivkami. 
+-- Primer aritmetičnega izraza, ki sešteje vrednosti spremenljivk na mestu 1 in 0 v stanju s tremi spremenljivkami.
 primer : Exp 3
 primer = ! 1 / 1 + ! 0 / 2 -- Da lahko uporabimo vrednost na mestu 0 in 1 v izrazu velikosti do 3.
 
@@ -157,15 +177,21 @@ Result n = State n
 
 evalExp : {n : Nat} → State n → Exp n → Nat
 evalExp st (` x) = x
-evalExp st (! i) = {!   !}
+evalExp st (! i) = st [ i ]
 evalExp st (exp₁ + exp₂) = plus (evalExp st exp₁) (evalExp st exp₂)
-evalExp st (exp₁ * exp₂) = {!   !}
+evalExp st (exp₁ * exp₂) = times (evalExp st exp₁) (evalExp st exp₂)
 
 evalBExp : {n : Nat} → State n → BExp n → Bool
-evalBExp = {!   !}
+evalBExp st (bexp₁ ≡ bexp₂) = equal (evalExp st bexp₁) (evalExp st bexp₂)
+evalBExp st (bexp₁ < bexp₂) = smaller (evalExp st bexp₁) (evalExp st bexp₂)
+evalBExp st (bexp₁ > bexp₂) = greater (evalExp st bexp₁) (evalExp st bexp₂)
 
 evalCmd : {n : Nat} → Nat → State n → Cmd n → Result n
-evalCmd n st IF bexp THEN cmd₁ ELSE cmd₂ END = {!   !}
+evalCmd n st IF bexp THEN cmd₁ ELSE cmd₂ END =
+    if evalBExp st bexp then
+        evalCmd n st cmd₁
+    else
+        evalCmd n st cmd₂
 evalCmd (suc n) st WHILE bexp DO cmd DONE =
     if evalBExp st bexp then
         evalCmd n (evalCmd n st cmd) (WHILE bexp DO cmd DONE)
