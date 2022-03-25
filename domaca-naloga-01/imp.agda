@@ -105,6 +105,7 @@ infixr 3 _；_
 infix 4 _:=_
 infix 5 IF_THEN_ELSE_END
 infix 6 WHILE_DO_DONE
+infix 6 FOR_:=_TO_DO_DONE
 infix 6 SKIP
 
 infixl 7 _OR_
@@ -143,6 +144,7 @@ data BExp (n : Nat) : Set where
 data Cmd : (n : Nat) → Set where
     IF_THEN_ELSE_END : {n : Nat} → BExp n → Cmd n → Cmd n → Cmd n
     WHILE_DO_DONE : {n : Nat} → BExp n → Cmd n → Cmd n
+    FOR_:=_TO_DO_DONE : {n : Nat} → Fin n → Exp n → Exp n → Cmd n → Cmd n
     _；_ : {n : Nat} → Cmd n → Cmd n → Cmd n
     _:=_ : {n : Nat} → (Fin n) → Exp n → Cmd n
     SKIP : {n : Nat} → Cmd n
@@ -230,6 +232,13 @@ evalCmd n st (cmd₁ ； cmd₂) = evalCmd n (evalCmd n st cmd₁) cmd₂
 evalCmd _ st (ℓ := exp) = st [ ℓ ]← (evalExp st exp) 
 evalCmd _ st SKIP = st
 evalCmd zero st (WHILE bexp DO cmd DONE) = st
+evalCmd zero st FOR i := exp₁ TO exp₂ DO cmd DONE = st
+evalCmd (suc n) st FOR i := exp₁ TO exp₂ DO cmd DONE = 
+    if equal (evalExp st exp₁) (evalExp st exp₂) then
+        st
+    else
+        -- dodaj i v okolje izvajanja trenutne iteracije
+        evalCmd n (evalCmd n (evalCmd n st (i := exp₁)) cmd) (FOR i := exp₁ + ` (suc zero) TO exp₂ DO cmd DONE)
 
 -- Pozor: tip funkcije ima smisel zgolj za osnovni tip rezultata
 vsotaPrvihN : Nat → Nat
