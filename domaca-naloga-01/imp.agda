@@ -194,15 +194,15 @@ record Pair (A B : Set) : Set where
         fst : A
         snd : B
 
-Result : Nat → Set
-Result n = Pair (State n) (List Nat)
-
--- data Maybe (A : Set) : Set where
---     nothing : Maybe A
---     just : A → Maybe A
-
 -- Result : Nat → Set
--- Result n = Pair (Maybe (State n)) (List Nat)
+-- Result n = Pair (State n) (List Nat)
+
+data Maybe (A : Set) : Set where
+    nothing : Maybe A
+    just : A → Maybe A
+
+Result : Nat → Set
+Result n = Pair (Maybe (State n)) (List Nat)
 
 evalExp : {n : Nat} → State n → Exp n → Nat
 evalExp st (` x) = x
@@ -220,30 +220,31 @@ evalBExp st (bexp₁ OR bexp₂) = agdaOr (evalBExp st bexp₁) (evalBExp st bex
 evalBExp st (NOT bexp) = agdaNot (evalBExp st bexp)
 
 evalCmd : {n : Nat} → Nat → Result n → Cmd n → Result n
-evalCmd n (st , printList) IF bexp THEN cmd₁ ELSE cmd₂ END =
+evalCmd _ (nothing , printList) _ = (nothing , printList)
+evalCmd n (just st , printList) IF bexp THEN cmd₁ ELSE cmd₂ END =
     if evalBExp st bexp then
-        evalCmd n (st , printList) cmd₁
+        evalCmd n (just st , printList) cmd₁
     else
-        evalCmd n (st , printList) cmd₂
-evalCmd (suc n) (st , printList) WHILE bexp DO cmd DONE =
+        evalCmd n (just st , printList) cmd₂
+evalCmd (suc n) (just st , printList) WHILE bexp DO cmd DONE =
     if evalBExp st bexp then
-        evalCmd n (evalCmd n (st , printList) cmd) (WHILE bexp DO cmd DONE)
+        evalCmd n (evalCmd n (just st , printList) cmd) (WHILE bexp DO cmd DONE)
     else
-        (st , printList)
+        (just st , printList)
 evalCmd n res (cmd₁ ； cmd₂) = evalCmd n (evalCmd n res cmd₁) cmd₂
-evalCmd _ (st , printList) (ℓ := exp) = ((st [ ℓ ]← (evalExp st exp)) , printList)
+evalCmd _ (just st , printList) (ℓ := exp) = (just (st [ ℓ ]← (evalExp st exp)) , printList)
 evalCmd _ st SKIP = st
 evalCmd zero st (WHILE bexp DO cmd DONE) = st
 evalCmd zero st (FOR i := exp₁ TO exp₂ DO cmd DONE) = st
-evalCmd (suc n) (st , printList) FOR i := exp₁ TO exp₂ DO cmd DONE = 
+evalCmd (suc n) (just st , printList) FOR i := exp₁ TO exp₂ DO cmd DONE = 
     if equal (evalExp st exp₁) (evalExp st exp₂) then
-        (st , printList)
+        (just st , printList)
     else
-        evalCmd n (evalCmd n (evalCmd n (st , printList) (i := exp₁)) cmd) (FOR i := exp₁ + ` (suc zero) TO exp₂ DO cmd DONE)
-evalCmd n (st , printList) (PRINT exp) = (st , ((evalExp st exp) :: printList))
+        evalCmd n (evalCmd n (evalCmd n (just st , printList) (i := exp₁)) cmd) (FOR i := exp₁ + ` (suc zero) TO exp₂ DO cmd DONE)
+evalCmd n (just st , printList) (PRINT exp) = (just st , ((evalExp st exp) :: printList))
 
 -- Pozor: tip funkcije ima smisel zgolj za osnovni tip rezultata
-vsotaPrvihN : Nat → Nat
+-- vsotaPrvihN : Nat → Maybe Nat
 -- vsotaPrvihN n = (evalCmd 125 ( 0 :: (0 :: (0 :: []))) (vsota n)) [ 0 / 2 ]
-vsotaPrvihN n = (Pair.fst (evalCmd 125 (( 0 :: (0 :: (0 :: []))) , (0 :: [])) (vsota n))) [ 0 / 2 ]
+-- vsotaPrvihN n = (Pair.fst (evalCmd 125 (just ( 0 :: (0 :: (0 :: []))) , (0 :: [])) (vsota n))) [ 0 / 2 ]
 
