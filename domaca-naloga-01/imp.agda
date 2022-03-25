@@ -107,6 +107,7 @@ infix 5 IF_THEN_ELSE_END
 infix 6 WHILE_DO_DONE
 infix 6 FOR_:=_TO_DO_DONE
 infix 6 SKIP
+infix 6 PRINT
 
 infixl 7 _OR_
 infixl 8 _AND_
@@ -148,14 +149,15 @@ data Cmd : (n : Nat) → Set where
     _；_ : {n : Nat} → Cmd n → Cmd n → Cmd n
     _:=_ : {n : Nat} → (Fin n) → Exp n → Cmd n
     SKIP : {n : Nat} → Cmd n
+    PRINT : {n : Nat} → Exp n → Cmd n
 
 -- Primer aritmetičnega izraza, ki sešteje vrednosti spremenljivk na mestu 1 in 0 v stanju s tremi spremenljivkami.
 primer : Exp 3
 primer = ! 1 / 1 + ! 0 / 2 -- Da lahko uporabimo vrednost na mestu 0 in 1 v izrazu velikosti do 3.
 
 -- Program, ki sešteje prvih n naravnih števil
-vsota : Nat → Cmd 3
-vsota n = 
+vsota1 : Nat → Cmd 3
+vsota1 n = 
     0 / 2 := ` n ； -- Indeksiramo prvo spremenljivo, in tip vseh možnih spremenljivk povečamo za 2, saj bomo v celotnem programo potrebovali tri spremenljivke
     1 / 1 := ` 0 ；
     2 / 0 :=  ! (0 / 2) ；
@@ -165,15 +167,15 @@ vsota n =
     DONE
 
 -- Program, ki sešteje prvih n naravnih števil s pomočjo for zanke
--- vsota : Nat → Cmd 3
--- vsota n = 
---     0 / 2 := ` n ； -- Indeksiramo prvo spremenljivo, in tip vseh možnih spremenljivk povečamo za 2, saj bomo v celotnem programo potrebovali tri spremenljivke
---     1 / 1 := ` 0 ；
---     2 / 0 := ` 0 ；
---     FOR ( (1 / 1) ) := ` 1 TO ! (0 / 2) DO
---         2 / 0 := ! 2 / 0 + ! 1 / 1 ；
---         1 / 1 := ! 1 / 1 + ` 1 ； PRINT (! (2 / 0))
---     DONE
+vsota : Nat → Cmd 3
+vsota n = 
+    0 / 2 := ` n ； -- Indeksiramo prvo spremenljivo, in tip vseh možnih spremenljivk povečamo za 2, saj bomo v celotnem programo potrebovali tri spremenljivke
+    1 / 1 := ` 0 ；
+    2 / 0 := ` 0 ；
+    FOR ( (1 / 1) ) := ` 1 TO ! (0 / 2) DO
+        2 / 0 := ! 2 / 0 + ! 1 / 1 ；
+        1 / 1 := ! 1 / 1 + ` 1 ； PRINT (! (2 / 0))
+    DONE
 
 
 -- Stanje
@@ -181,19 +183,19 @@ vsota n =
 State : Nat → Set
 State n = Vec Nat n
 
-Result : Nat → Set
-Result n = State n
+-- Result : Nat → Set
+-- Result n = State n
 
 -- Če želite, lahko za nadgradnjo rezultatov uporabite spodnje tipe
 
--- record Pair (A B : Set) : Set where
---     constructor _,_
---     field
---         fst : A
---         snd : B
+record Pair (A B : Set) : Set where
+    constructor _,_
+    field
+        fst : A
+        snd : B
 
--- Result : Nat → Set
--- Result n = Pair (State n) (List Nat)
+Result : Nat → Set
+Result n = Pair (State n) (List Nat)
 
 -- data Maybe (A : Set) : Set where
 --     nothing : Maybe A
@@ -217,29 +219,31 @@ evalBExp st (bexp₁ AND bexp₂) = agdaAnd (evalBExp st bexp₁) (evalBExp st b
 evalBExp st (bexp₁ OR bexp₂) = agdaOr (evalBExp st bexp₁) (evalBExp st bexp₂)
 evalBExp st (NOT bexp) = agdaNot (evalBExp st bexp)
 
-evalCmd : {n : Nat} → Nat → State n → Cmd n → Result n
-evalCmd n st IF bexp THEN cmd₁ ELSE cmd₂ END =
+evalCmd : {n : Nat} → Nat → Result n → Cmd n → Result n
+evalCmd n (st , printList) IF bexp THEN cmd₁ ELSE cmd₂ END =
     if evalBExp st bexp then
-        evalCmd n st cmd₁
+        evalCmd n (st , printList) cmd₁
     else
-        evalCmd n st cmd₂
-evalCmd (suc n) st WHILE bexp DO cmd DONE =
+        evalCmd n (st , printList) cmd₂
+evalCmd (suc n) (st , printList) WHILE bexp DO cmd DONE =
     if evalBExp st bexp then
-        evalCmd n (evalCmd n st cmd) (WHILE bexp DO cmd DONE)
+        evalCmd n (evalCmd n (st , printList) cmd) (WHILE bexp DO cmd DONE)
     else
-        st
-evalCmd n st (cmd₁ ； cmd₂) = evalCmd n (evalCmd n st cmd₁) cmd₂
-evalCmd _ st (ℓ := exp) = st [ ℓ ]← (evalExp st exp) 
+        (st , printList)
+evalCmd n res (cmd₁ ； cmd₂) = evalCmd n (evalCmd n res cmd₁) cmd₂
+evalCmd _ (st , printList) (ℓ := exp) = ((st [ ℓ ]← (evalExp st exp)) , printList)
 evalCmd _ st SKIP = st
 evalCmd zero st (WHILE bexp DO cmd DONE) = st
-evalCmd zero st FOR i := exp₁ TO exp₂ DO cmd DONE = st
-evalCmd (suc n) st FOR i := exp₁ TO exp₂ DO cmd DONE = 
+evalCmd zero st (FOR i := exp₁ TO exp₂ DO cmd DONE) = st
+evalCmd (suc n) (st , printList) FOR i := exp₁ TO exp₂ DO cmd DONE = 
     if equal (evalExp st exp₁) (evalExp st exp₂) then
-        st
+        (st , printList)
     else
-        -- dodaj i v okolje izvajanja trenutne iteracije
-        evalCmd n (evalCmd n (evalCmd n st (i := exp₁)) cmd) (FOR i := exp₁ + ` (suc zero) TO exp₂ DO cmd DONE)
+        evalCmd n (evalCmd n (evalCmd n (st , printList) (i := exp₁)) cmd) (FOR i := exp₁ + ` (suc zero) TO exp₂ DO cmd DONE)
+evalCmd n (st , printList) (PRINT exp) = (st , ((evalExp st exp) :: printList))
 
 -- Pozor: tip funkcije ima smisel zgolj za osnovni tip rezultata
 vsotaPrvihN : Nat → Nat
-vsotaPrvihN n = (evalCmd 125 ( 0 :: (0 :: (0 :: []))) (vsota n)) [ 0 / 2 ]
+-- vsotaPrvihN n = (evalCmd 125 ( 0 :: (0 :: (0 :: []))) (vsota n)) [ 0 / 2 ]
+vsotaPrvihN n = (Pair.fst (evalCmd 125 (( 0 :: (0 :: (0 :: []))) , (0 :: [])) (vsota n))) [ 0 / 2 ]
+
