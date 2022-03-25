@@ -244,7 +244,13 @@ evalCmd (suc n) (just st , printList) FOR i := exp₁ TO exp₂ DO cmd DONE =
 evalCmd n (just st , printList) (PRINT exp) = (just st , ((evalExp st exp) :: printList))
 
 -- Pozor: tip funkcije ima smisel zgolj za osnovni tip rezultata
--- vsotaPrvihN : Nat → Maybe Nat
+vsotaPrvihN : Nat → Maybe Nat
+-- vsotaPrvihN : Nat → Maybe (State 3)
 -- vsotaPrvihN n = (evalCmd 125 ( 0 :: (0 :: (0 :: []))) (vsota n)) [ 0 / 2 ]
--- vsotaPrvihN n = (Pair.fst (evalCmd 125 (just ( 0 :: (0 :: (0 :: []))) , (0 :: [])) (vsota n))) [ 0 / 2 ]
+-- vsotaPrvihN n = (Pair.fst (evalCmd 125 (just ( 0 :: (0 :: (0 :: []))) , (0 :: [])) (vsota n)))
+vsotaPrvihN n = maybeVal (Pair.fst (evalCmd 125 (just ( 0 :: (0 :: (0 :: []))) , (0 :: [])) (vsota n)))
+                where 
+                maybeVal : (Maybe (State 3)) → Maybe Nat
+                maybeVal nothing = nothing
+                maybeVal (just st) = just (st [ 0 / 2 ])
 
