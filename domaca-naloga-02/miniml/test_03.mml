@@ -1,0 +1,4 @@
+
+MATCH {1, TRUE} :: {2, FALSE} :: [] WITH
+| [] -> {[], []}
+| xy :: xs -> {FST xy, 5}
