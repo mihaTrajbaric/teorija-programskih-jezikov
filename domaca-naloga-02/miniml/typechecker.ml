@@ -33,7 +33,8 @@ let rec infer_exp ctx = function
       let ty2, eqs2 = infer_exp ctx e2 in
       let alpha = fresh_ty () in
       (alpha, ((ty1, ArrowTy (ty2, alpha)) :: eqs1) @ eqs2)
-  | _ -> failwith "TODO"
+  (* | Pair (e1, e2) *)
+  | _ -> failwith "TODO typechecker/infer_exp"
 
 let subst_eqs sbst eqs =
   List.map (fun (ty1, ty2) -> (subst_ty sbst ty1, subst_ty sbst ty2)) eqs

@@ -26,7 +26,7 @@ let rec eval_exp = function
       | S.Bool true -> eval_exp e1
       | S.Bool false -> eval_exp e2
       | _ -> failwith "Boolean expected")
-  | _ -> failwith "TODO"
+  | _ -> failwith "TODO interpLazy/eval_exp"
 
 and eval_int e =
   match eval_exp e with S.Int n -> n | _ -> failwith "Integer expected"
@@ -36,7 +36,7 @@ let is_value = function
   | S.Var _ | S.Plus _ | S.Minus _ | S.Times _ | S.Equal _ | S.Less _
   | S.Greater _ | S.IfThenElse _ | S.Apply _ ->
       false
-  | _ -> failwith "TODO"
+  | _ -> failwith "TODO interpLazy/is_value"
 
 let rec step = function
   | S.Var _ | S.Int _ | S.Bool _ | S.Lambda _ | S.RecLambda _ ->
@@ -61,7 +61,7 @@ let rec step = function
   | S.Greater (e1, e2) -> S.Greater (step e1, e2)
   | S.IfThenElse (S.Bool b, e1, e2) -> if b then e1 else e2
   | S.IfThenElse (e, e1, e2) -> S.IfThenElse (step e, e1, e2)
-  | _ -> failwith "TODO"
+  | _ -> failwith "TODO interpLazy/step"
 
 let big_step e =
   let v = eval_exp e in

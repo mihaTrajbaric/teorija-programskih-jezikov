@@ -33,17 +33,33 @@ let rec eval_exp = function
       | S.RecLambda (f, x, e) as rec_f ->
           eval_exp (S.subst_exp [ (f, rec_f); (x, v) ] e)
       | _ -> failwith "Function expected")
-  | _ -> failwith "TODO"
+  | S.Pair (e1, e2) -> 
+      let v1 = eval_exp e1 and v2 = eval_exp e2 in
+      S.Pair (v1, v2)
+  | S.Fst e -> (
+    match eval_exp e with
+    | S.Pair(e1, e2) -> 
+      let v1 = eval_exp e1 and _ = eval_exp e2 in
+      v1
+    | _ -> failwith "Pair expected")
+  | S.Snd e -> (
+      match eval_exp e with
+      | S.Pair(e1, e2) -> 
+        let _ = eval_exp e1 and v2 = eval_exp e2 in
+        v2
+      | _ -> failwith "Pair expected")
+  | _ -> failwith "TODO interpreter/eval_exp"
 
 and eval_int e =
   match eval_exp e with S.Int n -> n | _ -> failwith "Integer expected"
 
-let is_value = function
-  | S.Int _ | S.Bool _ | S.Lambda _ | S.RecLambda _ -> true
+let rec is_value = function
+  | S.Int _ | S.Bool _ | S.Lambda _ | S.RecLambda _-> true
+  | S.Pair (v1, v2) when (is_value v1) -> is_value v2
   | S.Var _ | S.Plus _ | S.Minus _ | S.Times _ | S.Equal _ | S.Less _
-  | S.Greater _ | S.IfThenElse _ | S.Apply _ ->
+  | S.Greater _ | S.IfThenElse _ | S.Apply _ | S.Pair _ | S.Fst _ | S.Snd _->
       false
-  | _ -> failwith "TODO"
+  | _ -> failwith "TODO interpreter/is_value"
 
 let rec step = function
   | S.Var _ | S.Int _ | S.Bool _ | S.Lambda _ | S.RecLambda _ ->
@@ -73,7 +89,13 @@ let rec step = function
       S.subst_exp [ (f, rec_f); (x, v) ] e
   | S.Apply (((S.Lambda _ | S.RecLambda _) as f), e) -> S.Apply (f, step e)
   | S.Apply (e1, e2) -> S.Apply (step e1, e2)
-  | _ -> failwith "TODO"
+  | S.Pair (v1, e2) when is_value v1 -> S.Pair(v1, step e2)
+  | S.Pair (e1, e2) -> S.Pair(step e1, e2)
+  | S.Fst(S.Pair(v1, v2)) when (is_value v1) && (is_value v2) -> v1
+  | S.Fst e -> S.Fst(step e)
+  | S.Snd(S.Pair(v1, v2)) when (is_value v1) && (is_value v2) -> v2
+  | S.Snd e -> S.Snd(step e)
+  | _ -> failwith "TODO interpreter/step"
 
 let big_step e =
   let v = eval_exp e in
