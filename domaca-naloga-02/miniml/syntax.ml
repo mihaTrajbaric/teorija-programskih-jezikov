@@ -96,12 +96,8 @@ let rec subst_exp sbst = function
     subst_exp sbst e1,
     x,
     xs,
-    (* TODO is this really working? test and fix accordingly *)
-    (* (match List.assoc_opt x sbst with None -> x | Some x' -> x'), *)
-    (* (match List.assoc_opt xs sbst with None -> xs | Some xs' -> xs'), *)
     subst_exp sbst' e2
   )
-  (* | _ -> failwith "TODO" *)
 
 let string_of_ident (Ident x) = x
 

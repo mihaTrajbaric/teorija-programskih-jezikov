@@ -1,4 +1,4 @@
 
-MATCH {1, TRUE} :: {2, FALSE} :: [] WITH
+MATCH {1+2, 1<2} :: {2, FALSE} :: [] WITH
 | [] -> {[], []}
-| xy :: xs -> {FST xy, 5}
+| xy :: xs -> {FST xy, 5<6}

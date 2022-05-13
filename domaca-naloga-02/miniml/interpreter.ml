@@ -37,10 +37,10 @@ let rec eval_exp = function
       let v1 = eval_exp e1 and v2 = eval_exp e2 in
       S.Pair (v1, v2)
   | S.Fst e -> (
-    match eval_exp e with
-    | S.Pair(e1, e2) -> 
-      let v1 = eval_exp e1 and _ = eval_exp e2 in
-      v1
+      match eval_exp e with
+      | S.Pair(e1, e2) -> 
+        let v1 = eval_exp e1 and _ = eval_exp e2 in
+        v1
     | _ -> failwith "Pair expected")
   | S.Snd e -> (
       match eval_exp e with
@@ -49,13 +49,16 @@ let rec eval_exp = function
         v2
       | _ -> failwith "Pair expected")
   | S.Cons (x, xs) -> 
-    let v = eval_exp x and vs = eval_exp xs in
-    S.Cons (v, vs)
+      let v = eval_exp x and vs = eval_exp xs in
+      S.Cons (v, vs)
   | S.Match (e, e1, x, xs, e2) ->
-    match eval_exp e with
-    | Nil -> eval_exp e1
-    | S.Cons (v, vs) -> eval_exp (S.subst_exp [ (x, eval_exp v); (xs, eval_exp vs)] e2)
-  | _ -> failwith "TODO interpreter/eval_exp"
+      match eval_exp e with
+      | Nil -> eval_exp e1
+      | S.Cons (y, ys) -> 
+        let v = eval_exp y and vs = eval_exp ys in
+        eval_exp (S.subst_exp [ (x, v); (xs, vs)] e2)
+      | _ -> failwith "List expected"
+  (* | _ -> failwith "TODO interpreter/eval_exp" *)
 
 and eval_int e =
   match eval_exp e with S.Int n -> n | _ -> failwith "Integer expected"
@@ -68,12 +71,11 @@ let rec is_value = function
   | S.Greater _ | S.IfThenElse _ | S.Apply _ | S.Pair _ | S.Fst _ 
   | S.Snd _ | S.Cons _ | S.Match _->
       false
-  (* | _ -> failwith "TODO interpreter/is_value" *)
 
 let rec step = function
-  | (S.Var _ | S.Int _ | S.Bool _ | S.Lambda _ | S.RecLambda _) as e ->
-    failwith (S.string_of_exp e)
-      (* failwith "Expected a non-terminal expression" *)
+  | S.Var _ | S.Int _ | S.Bool _ | S.Lambda _ | S.RecLambda _ ->
+    (* failwith (S.string_of_exp e) *)
+      failwith "Expected a non-terminal expression"
   | S.Plus (S.Int n1, S.Int n2) -> S.Int (n1 + n2)
   | S.Plus (S.Int n1, e2) -> S.Plus (S.Int n1, step e2)
   | S.Plus (e1, e2) -> S.Plus (step e1, e2)
