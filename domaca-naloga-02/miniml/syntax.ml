@@ -18,13 +18,13 @@ let rec occurs p = function
   | IntTy | BoolTy -> false
   | ArrowTy (ty1, ty2) -> occurs p ty1 || occurs p ty2
   | ParamTy p' -> p = p'
-  | _ -> failwith "TODO"
+  | _ -> failwith "TODO syntax/occurs"
 
 let rec subst_ty sbst = function
   | (IntTy | BoolTy) as ty -> ty
   | ArrowTy (ty1, ty2) -> ArrowTy (subst_ty sbst ty1, subst_ty sbst ty2)
   | ParamTy p as ty -> List.assoc_opt p sbst |> Option.value ~default:ty
-  | _ -> failwith "TODO"
+  | _ -> failwith "TODO syntax/subst_ty"
 
 let fresh_ty () = ParamTy (fresh_param ())
 
@@ -36,7 +36,7 @@ let rec string_of_ty = function
   | ArrowTy (ty1, ty2) ->
       "(" ^ string_of_ty ty1 ^ " -> " ^ string_of_ty ty2 ^ ")"
   | ParamTy p -> string_of_param p
-  | _ -> failwith "TODO"
+  | _ -> failwith "TODO syntax/string_of_ty"
 
 type ident = Ident of string
 
@@ -84,7 +84,20 @@ let rec subst_exp sbst = function
       let sbst' = List.remove_assoc f (List.remove_assoc x sbst) in
       RecLambda (f, x, subst_exp sbst' e)
   | Apply (e1, e2) -> Apply (subst_exp sbst e1, subst_exp sbst e2)
-  | _ -> failwith "TODO"
+  | Pair (e1, e2) -> Pair (subst_exp sbst e1, subst_exp sbst e2)
+  | Fst e -> Fst (subst_exp sbst e)
+  | Snd e -> Snd (subst_exp sbst e)
+  | Nil -> Nil
+  | Cons (e, es) -> Cons (subst_exp sbst e, subst_exp sbst es)
+  | Match (e, e1, x, xs, e2) -> 
+    let sbst' = List.remove_assoc xs (List.remove_assoc x sbst) in
+    Match(
+    subst_exp sbst e,
+    subst_exp sbst e1,
+    x,
+    xs,
+    subst_exp sbst' e2
+  )
 
 let string_of_ident (Ident x) = x
 
@@ -105,10 +118,19 @@ and string_of_exp2 = function
   | Plus (e1, e2) -> string_of_exp1 e1 ^ " + " ^ string_of_exp1 e2
   | Minus (e1, e2) -> string_of_exp1 e1 ^ " - " ^ string_of_exp1 e2
   | Times (e1, e2) -> string_of_exp1 e1 ^ " * " ^ string_of_exp1 e2
+  | Fst e -> "FST " ^ string_of_exp1 e
+  | Snd e -> "SND " ^ string_of_exp1 e
+  | Match (e, e1, x, xs, e2) -> 
+    "MATCH " ^ string_of_exp1 e ^ " WITH | [] -> " ^ string_of_exp1 e1 
+    ^ " | " ^ string_of_ident x ^ " :: " ^ string_of_ident xs ^ " -> " 
+    ^ string_of_exp1 e2
   | e -> string_of_exp1 e
 
 and string_of_exp1 = function
   | Apply (e1, e2) -> string_of_exp0 e1 ^ " " ^ string_of_exp0 e2
+  | Pair (e1, e2) -> "{" ^ string_of_exp0 e1  ^ ", " ^ string_of_exp0 e2 ^ "}"
+  | Nil -> "[]"
+  | Cons (x, xs) -> string_of_exp0 x ^ " :: " ^ string_of_exp1 xs
   | e -> string_of_exp0 e
 
 and string_of_exp0 = function
