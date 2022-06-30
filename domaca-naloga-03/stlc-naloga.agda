@@ -124,7 +124,12 @@ rename ρ (ƛ M) = ƛ (rename (extend-renaming ρ) M)
 rename ρ ⟨ M , N ⟩ = ⟨ rename ρ M , rename ρ N ⟩
 rename ρ (FST M) = FST (rename ρ M)
 rename ρ (SND M) = SND (rename ρ M)
-rename ρ _ = {!   !}
+rename ρ [] = []
+rename ρ (x ∷ xs) = (rename ρ x) ∷ (rename ρ xs)
+rename ρ (MATCH x WITH[]↦ x₁ ∷↦ xs) = (MATCH (rename ρ x) WITH[]↦ (rename ρ x₁) ∷↦ rename (extend-renaming (extend-renaming ρ)) xs)
+rename ρ (INL x) = INL (rename ρ x)
+rename ρ (INR x) = INR (rename ρ x)
+rename ρ (MATCH x INL↦ xₗ INR↦ xᵣ) = (MATCH (rename ρ x) INL↦ (rename (extend-renaming ρ) xₗ) INR↦ (rename (extend-renaming ρ) xᵣ) )
 
 extend-subst : {Γ Δ : Ctx}
   → ({A : Ty} → A ∈ Γ → Δ ⊢ A)
@@ -147,7 +152,13 @@ subst σ (ƛ M) = ƛ (subst (extend-subst σ) M)
 subst σ ⟨ M , N ⟩ = ⟨ subst σ M , subst σ N ⟩
 subst σ (FST M) = FST (subst σ M)
 subst σ (SND M) = SND (subst σ M)
-subst σ _ = {!   !}
+subst σ [] = []
+subst σ (x ∷ xs) = (subst σ x) ∷ (subst σ xs)
+subst σ (MATCH x WITH[]↦ x₁ ∷↦ xs) = (MATCH (subst σ x) WITH[]↦ (subst σ x₁) ∷↦ subst (extend-subst (extend-subst σ)) xs)
+subst σ (INL x) = INL (subst σ x)
+subst σ (INR x) = INR (subst σ x)
+subst σ (MATCH x INL↦ xₗ INR↦ xᵣ) = (MATCH (subst σ x) INL↦ (subst (extend-subst σ) xₗ) INR↦ (subst (extend-subst σ) xᵣ) )
+
 
 _[_] : {Γ : Ctx} {A B : Ty}
   → (Γ , B) ⊢ A
@@ -266,12 +277,16 @@ data _↝_ : {Γ : Ctx} {A : Ty} → Γ ⊢ A → Γ ⊢ A → Set where
         M ↝ M' →
         ------------------------------------------------
         (M ∷ N) ↝ (M' ∷ N)
-    LIST-STEP2 : {!   !}
+    LIST-STEP2 : {Γ : Ctx} {A : Ty} {M : Γ ⊢ A} {N N' : Γ ⊢ [ A ]t } →
+        value M →
+        N ↝ N' →
+        ------------------------------------------------
+        (M ∷ N) ↝ (M ∷ N')
 
     LIST-MATCH-STEP : {Γ : Ctx} {A B : Ty} {M M' : Γ ⊢ [ A ]t } {N₁ : Γ ⊢ B} {N₂ : ((Γ , A) , [ A ]t ) ⊢ B } →
         M ↝ M' →
         ------------------------------------------------
-        (MATCH M WITH[]↦ N₁ ∷↦ N₂) ↝ {!   !}
+        (MATCH M WITH[]↦ N₁ ∷↦ N₂) ↝ ((MATCH M' WITH[]↦ N₁ ∷↦ N₂))
     
     LIST-MATCH-NIL-BETA : {Γ : Ctx} {A B : Ty} {N₁ : Γ ⊢ B} 
             {N₂ : ((Γ , A) , [ A ]t ) ⊢ B } →
@@ -281,10 +296,14 @@ data _↝_ : {Γ : Ctx} {A : Ty} → Γ ⊢ A → Γ ⊢ A → Set where
             {Γ : Ctx} {A B : Ty} {M₁ : Γ ⊢ A } 
             {M₂ : Γ ⊢ [ A ]t } {N₁ : Γ ⊢ B} 
             {N₂ : ((Γ , A) , [ A ]t ) ⊢ B } →
+            value M₁ →
+            value M₂ →
+        ------------------------------------------------
+        (MATCH M₁ ∷ M₂ WITH[]↦ N₁ ∷↦ N₂) ↝ (N₂ [ M₁ ][ M₂ ])
         -- Namiga:
         --  - Razmislite, ali potrebujete še kakšne dodatne informacije za M₁ in M₂.
         --  - Za substitucijo uporabite _[_][_].
-        {!   !}  
+        
 
     INL-STEP : {Γ : Ctx} {A B : Ty} {M M' : Γ ⊢ A} → 
         M ↝ M' → 
@@ -296,14 +315,20 @@ data _↝_ : {Γ : Ctx} {A : Ty} → Γ ⊢ A → Γ ⊢ A → Set where
         ------------------------------------------------
         (INR_ {A = A} M) ↝ (INR M')
     
-    VARIANT-MATCH-STEP : 
-        {!   !}
+    VARIANT-MATCH-STEP : {Γ : Ctx} {A B C : Ty} {M M' : Γ ⊢ (A + B) } {N₁ : (Γ , A) ⊢ C} {N₂ : (Γ , B) ⊢ C } →
+        M ↝ M' → 
+        ------------------------------------------------
+        (MATCH M INL↦ N₁ INR↦ N₂) ↝ (MATCH M' INL↦ N₁ INR↦ N₂)
+
     
     VARIANT-MATCH-BETA-INL : {Γ : Ctx} {A B C : Ty} {M : Γ ⊢ A } {N₁ : (Γ , A) ⊢ C} {N₂ : (Γ , B) ⊢ C } →
         value M →
         ------------------------------------------------
         (MATCH (INL M) INL↦ N₁ INR↦ N₂) ↝ (N₁ [ M ])
-    VARIANT-MATCH-BETA-INR : {!   !}
+    VARIANT-MATCH-BETA-INR : {Γ : Ctx} {A B C : Ty} {M : Γ ⊢ B } {N₁ : (Γ , A) ⊢ C} {N₂ : (Γ , B) ⊢ C } →
+        value M →
+        ------------------------------------------------
+        (MATCH (INR M) INL↦ N₁ INR↦ N₂) ↝ (N₂ [ M ])
 
 data progresses : {A : Ty} → ∅ ⊢ A → Set where
     is-value : {A : Ty} {M : ∅ ⊢ A} →
@@ -340,5 +365,25 @@ progress (FST M) with progress M
 progress (SND M) with progress M
 ... | is-value (value-PAIR V W) = steps (SND-BETA V W)
 ... | steps M↝M' = steps (SND-STEP M↝M')
-progress _ = {!   !}
+progress [] = is-value value-NIL
+progress (M ∷ N) with progress M
+... | steps M↝M' = steps (LIST-STEP1 M↝M')
+... | is-value V with progress N
+...     | is-value W = is-value (value-CONS V W )
+...     | steps N↝N' = steps (LIST-STEP2 V N↝N')
+progress (MATCH M WITH[]↦ M₁ ∷↦ M₂) with progress M
+... | steps M↝M' = steps (LIST-MATCH-STEP  M↝M')
+... | is-value value-NIL =  steps LIST-MATCH-NIL-BETA
+... | is-value (value-CONS V W ) = steps (LIST-MATCH-CONS-BETA V W)
+progress (INL M) with progress M
+... | is-value V = is-value (value-INL V)
+... | steps M↝M' = steps (INL-STEP M↝M')
+progress (INR M) with progress M
+... | is-value W = is-value (value-INR W)
+... | steps N↝N' = steps (INR-STEP N↝N')
+progress (MATCH M INL↦ M₁ INR↦ M₂) with progress M
+... | steps M↝M' = steps (VARIANT-MATCH-STEP  M↝M')
+... | is-value (value-INL V) = steps (VARIANT-MATCH-BETA-INL V)
+... | is-value (value-INR W) = steps (VARIANT-MATCH-BETA-INR W)
 
+ 
